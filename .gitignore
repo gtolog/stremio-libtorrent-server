@@ -1,1 +1,6 @@
+*.pyc
+.pytest_cache/
+.ruff_cache/
+.venv/
+__pycache__/
 docs/server.reference.js
