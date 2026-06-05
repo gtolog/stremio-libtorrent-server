@@ -169,8 +169,25 @@ SANITIZED — placeholder infoHash/name, redacted peer IPs):
 > downloaded/downloadSpeed`, `files[]` (path/name/length/offset), and `wires[]` (per-peer).
 > Peer-ID masquerades as Azureus (`-AZ5340-`).
 
-**Still ⏳ (recapture needed):**
-- `hlsv2` playlists (`master/video0/audio0.m3u8`, `init.mp4`, a segment) — first pass caught a
-  destroyed converter (`MasterConverter is destroyed`). Re-capture **during live playback**.
-- `/hwaccel-profiler` — first pass caught the flaky failure (`No viable…`); capture a success too
-  (informational only — our server controls HW detection).
+**CONFIRMED — `GET /hlsv2/:id/:track.m3u8` media playlist** (Stage 3 contract; fMP4/CMAF):
+```m3u8
+#EXTM3U
+#EXT-X-VERSION:7
+#EXT-X-TARGETDURATION:1
+#EXT-X-MEDIA-SEQUENCE:1
+#EXT-X-PLAYLIST-TYPE:VOD
+#EXT-X-MAP:URI="video0/init.mp4?mediaURL=<urlenc>&profile=<prof>&maxWidth=<n>"
+#EXTINF:0.200033,
+video0/segment1.m4s?mediaURL=<urlenc>&profile=<prof>&maxWidth=<n>
+```
+Key facts for parity:
+- **fMP4 segments** (`init.mp4` via `#EXT-X-MAP` + `segmentN.m4s`), HLS **v7**, `VOD`.
+- Every init/segment URL **carries the query** (`mediaURL`, `profile` e.g. `vaapi-renderD128`,
+  `maxWidth`) — the server keys the converter off these, so they must round-trip on sub-requests.
+- Captured against the bundled `samples/hevc.mkv` (the hwaccel test clip → short, one segment);
+  a real title produces many `#EXTINF`/segment lines + `#EXT-X-ENDLIST`. Content-neutral, no scrub.
+
+**Still ⏳ (nice-to-have, not blocking):**
+- `master.m3u8` + `audio0.m3u8` bodies (same family), a real `.m4s`/`init.mp4` (binary), `/hlsv2/probe`
+  success body. Capture before Stage 3.
+- `/hwaccel-profiler` success body (informational — our server controls HW detection).
