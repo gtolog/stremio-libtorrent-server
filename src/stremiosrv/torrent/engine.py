@@ -54,6 +54,14 @@ class Handle:
         for i in pieces:
             self._h.piece_priority(i, prio)
 
+    def ensure_low_baseline(self) -> None:
+        """Set every piece to a low baseline priority once, so bandwidth is focused on the
+        deadline/high-priority playhead window instead of greedily fetching the whole torrent."""
+        if getattr(self, "_baselined", False):
+            return
+        self._h.prioritize_pieces([1] * self.num_pieces())
+        self._baselined = True
+
     def set_piece_deadline(self, piece: int, ms: int) -> None:
         """Ask libtorrent to fetch this piece within `ms` (urgent, order-independent — enables
         responsive seeking and fetching a trailing moov atom without downloading the whole file)."""

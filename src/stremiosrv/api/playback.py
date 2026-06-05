@@ -101,6 +101,7 @@ def serve(info_hash: str, idx: int, request: Request):
     if not h.has_metadata():
         return Response(status_code=504, content=b"metadata timeout")
 
+    h.ensure_low_baseline()  # focus bandwidth on the playhead, not the whole torrent
     total = h.file_size(idx)
     start, end = parse_range(request.headers.get("Range"), total)
     headers = {
