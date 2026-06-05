@@ -12,14 +12,18 @@ services:
       NVIDIA_DRIVER_CAPABILITIES: all
       STREMIOSRV_BT_LISTEN_PORT: "6881"
       STREMIOSRV_CACHE_ROOT: /root/.stremio-server
+      CERT_FILE: certificates.pem    # full-chain+key PEM in the cache dir -> enables HTTPS on 12470
     devices:
       - /dev/dri:/dev/dri          # Intel VAAPI render node (NVENC comes via the nvidia runtime)
     ports:
       - "11470:11470"              # streaming-server HTTP API
+      - "12470:12470"              # HTTPS (nginx TLS, when a cert is present)
       - "6881:6881/tcp"            # BitTorrent peer port (this server accepts INBOUND peers)
       - "6881:6881/udp"            # DHT / uTP
     volumes:
-      - stremio-cache:/root/.stremio-server
+      # Set STREMIO_DATA_DIR to a host path (with certificates.pem) to reuse an existing cache+cert;
+      # otherwise a named volume is used.
+      - ${STREMIO_DATA_DIR:-stremio-cache}:/root/.stremio-server
     healthcheck:
       test: ["CMD", "curl", "-fsS", "http://127.0.0.1:11470/health"]
       interval: 30s
