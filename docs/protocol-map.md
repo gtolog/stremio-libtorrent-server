@@ -141,10 +141,35 @@ Fixtures in `tests/fixtures/`. **Confirmed:**
 - `/status` is **404 at top level** (`Cannot GET /status`) — the line-75852 route lives in a
   sub-router, not the root. Do **not** implement top-level `/status`.
 
+**CONFIRMED — `GET /:infoHash/stats.json` (active engine) schema** (Stage 2 contract; fixture must be
+SANITIZED — placeholder infoHash/name, redacted peer IPs):
+```jsonc
+{
+  "infoHash": "<40hex>", "name": "<str>",
+  "peers": 0, "unchoked": 0, "queued": 0, "unique": 0,
+  "connectionTries": 0, "swarmPaused": false, "swarmConnections": 0, "swarmSize": 0,
+  "selections": [],
+  "wires": [ { "requests": 0, "address": "<ip:port>", "amInterested": false,
+               "isSeeder": false, "downSpeed": 0, "upSpeed": 0 } ],
+  "files": [ { "path": "<str>", "name": "<str>", "length": 0, "offset": 0, "__cacheEvents": true } ],
+  "downloaded": 0, "uploaded": 0, "downloadSpeed": 0, "uploadSpeed": 0,
+  "sources": [ { "numFound": 0, "numFoundUniq": 0, "numRequests": 0,
+                 "url": "tracker:udp://…/announce" | "dht:<hash>", "lastStarted": "<iso8601>" } ],
+  "peerSearchRunning": true,
+  "opts": { "peerSearch": { "min": 40, "max": 150, "sources": ["tracker:…","dht:…"] },
+            "dht": false, "tracker": false, "connections": 200,
+            "handshakeTimeout": 5000, "timeout": 2000, "virtual": true,
+            "swarmCap": { "minPeers": 20, "maxSpeed": 12582912 },
+            "growler": { "flood": 0, "pulse": 52428800 },
+            "path": "<cache-path>", "id": "-AZ5340-<rand>", "flood": 0, "pulse": <int> }
+}
+```
+> Confirms the engine design: `opts.dht=false`/`tracker=false` (built-ins off) while `peerSearch.sources`
+> drives DHT+tracker discovery. Our libtorrent impl must populate `peers/unchoked/swarmConnections/
+> downloaded/downloadSpeed`, `files[]` (path/name/length/offset), and `wires[]` (per-peer).
+> Peer-ID masquerades as Azureus (`-AZ5340-`).
+
 **Still ⏳ (recapture needed):**
-- `/:hash/stats.json` & `/:hash/:idx/stats.json` — first pass returned `null` (no active engine).
-  Re-capture against a torrent whose **index 0 is the video**, after ~15–20 s with peers, to get
-  the populated object (fields like `downloaded`, `downloadSpeed`, `peers`, `unchoked`).
 - `hlsv2` playlists (`master/video0/audio0.m3u8`, `init.mp4`, a segment) — first pass caught a
   destroyed converter (`MasterConverter is destroyed`). Re-capture **during live playback**.
 - `/hwaccel-profiler` — first pass caught the flaky failure (`No viable…`); capture a success too
