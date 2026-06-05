@@ -20,3 +20,19 @@ def create_app(settings: Settings | None = None, engine=None) -> FastAPI:
     app.include_router(handshake.router)
     app.include_router(playback.router)
     return app
+
+
+def build_app() -> FastAPI:
+    """Server entrypoint factory: creates the real libtorrent engine from settings.
+
+    Run with:  uvicorn stremiosrv.app:build_app --factory --host 0.0.0.0 --port <p>
+    """
+    from stremiosrv.torrent.engine import Engine
+
+    settings = Settings()
+    engine = Engine(
+        listen_port=settings.bt_listen_port,
+        cache_root=settings.cache_root,
+        max_connections=settings.bt_max_connections,
+    )
+    return create_app(settings=settings, engine=engine)

@@ -71,6 +71,22 @@ def file_stats(info_hash: str, idx: int, request: Request):
     return serialize_stats(h, idx) if h else None
 
 
+@router.get("/removeAll")
+def remove_all(request: Request) -> dict:
+    eng = _engine(request)
+    if eng is not None:
+        eng.remove_all()
+    return {"ok": True}
+
+
+@router.get("/{info_hash}/remove")
+def remove(info_hash: str, request: Request) -> dict:
+    eng = _engine(request)
+    if eng is not None:
+        eng.remove(info_hash)
+    return {"ok": True}
+
+
 @router.api_route("/{info_hash}/{idx}", methods=["GET", "HEAD"])
 def serve(info_hash: str, idx: int, request: Request):
     """Byte-range file streaming with lazy engine create + sequential 'head & holes' priority."""

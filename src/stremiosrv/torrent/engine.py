@@ -91,6 +91,10 @@ class Engine:
         if h is not None:
             self._ses.remove_torrent(h.raw())
 
+    def remove_all(self) -> None:
+        for ih in list(self._torrents):
+            self.remove(ih)
+
     def save_path(self) -> str:
         return self._cache_root
 
