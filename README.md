@@ -53,7 +53,7 @@ The fork keeps building/validating the transcode toolchain + packaging; this rep
 | 0 | Protocol map + conformance fixtures (`docs/protocol-map.md`) | ✅ done |
 | 1 | FastAPI skeleton · Pydantic config · `/health` (ITCOM contract) | ✅ done |
 | 2 | Torrent core + direct play (libtorrent engine, Range serving, stats, **inbound peers**, head & holes) | ✅ done — verified on hardware (inbound LISTEN; 206 + real bytes from a torrent; live HTTP) |
-| 3 | Transcode / HLS (`hlsv2`, probe, hwaccel-profiler) reusing the dual-GPU ffmpeg | ⏳ planned |
+| 3 | Transcode / HLS (`hlsv2`, probe, hwaccel-profiler) reusing the dual-GPU ffmpeg | ✅ done — verified in-image (NVENC HEVC→H264 + AAC; fMP4 HLS served over HTTP) |
 | 4 | Subtitles · `opensubHash` · casting | ⏳ planned |
 | 5 | Productionise — Docker/compose, DEVOPS.md, Ansible/Jenkins, AHM | ⏳ planned |
 
