@@ -10,7 +10,8 @@ WORKDIR /srv/app
 # Dependency metadata first (better layer caching), then source.
 COPY pyproject.toml uv.lock README.md ./
 COPY src ./src
-RUN uv sync --no-dev
+# Pin Python 3.12: libtorrent 2.0.11 only publishes cp312/cp313 wheels (no 3.14).
+RUN uv sync --no-dev --python 3.12
 
 ENV STREMIOSRV_CACHE_ROOT=/root/.stremio-server
 ENV PATH="/srv/app/.venv/bin:${PATH}"
