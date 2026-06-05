@@ -8,6 +8,8 @@ Targets libtorrent 2.0.x (python bindings).
 """
 from __future__ import annotations
 
+import time
+
 import libtorrent as lt
 
 from stremiosrv.torrent.trackers import merge_trackers
@@ -30,6 +32,10 @@ class Handle:
 
     def info_hash(self) -> str:
         return str(self._h.status().info_hashes.v1)
+
+    def name(self) -> str:
+        ti = self._h.torrent_file()
+        return ti.name() if ti else ""
 
     # --- file / piece geometry (metadata must be present) ---
     def piece_length(self) -> int:
@@ -129,6 +135,25 @@ class Engine:
         })
         self._cache_root = cache_root
         self._torrents: dict[str, Handle] = {}
+        self._last_access: dict[str, float] = {}  # infohash -> monotonic time of last serve
+
+    def _touch(self, info_hash: str) -> None:
+        self._last_access[info_hash.lower()] = time.monotonic()
+
+    def recent_names(self, grace: int) -> set[str]:
+        """Torrent file/dir names served within `grace` seconds — protected from eviction."""
+        now = time.monotonic()
+        names: set[str] = set()
+        for ih, t in self._last_access.items():
+            if now - t <= grace:
+                h = self._torrents.get(ih)
+                if h is not None and h.has_metadata():
+                    names.add(h.name())
+        return names
+
+    def name_to_hash(self) -> dict[str, str]:
+        """Map on-disk torrent name -> infohash for active torrents (so eviction can stop them)."""
+        return {h.name(): ih for ih, h in self._torrents.items() if h.has_metadata()}
 
     def add(self, magnet_or_hash: str, trackers: list[str] | None = None) -> Handle:
         if magnet_or_hash.startswith("magnet:"):
@@ -144,13 +169,18 @@ class Engine:
         th = self._ses.add_torrent(p)
         h = Handle(th)
         self._torrents[h.info_hash().lower()] = h
+        self._touch(h.info_hash())
         return h
 
     def get(self, info_hash: str) -> Handle | None:
-        return self._torrents.get(info_hash.lower())
+        h = self._torrents.get(info_hash.lower())
+        if h is not None:
+            self._touch(info_hash)
+        return h
 
     def remove(self, info_hash: str) -> None:
         h = self._torrents.pop(info_hash.lower(), None)
+        self._last_access.pop(info_hash.lower(), None)
         if h is not None:
             self._ses.remove_torrent(h.raw())
 

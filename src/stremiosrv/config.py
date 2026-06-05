@@ -10,6 +10,8 @@ class Settings(BaseSettings):
     bt_listen_port: int = 6881
     enable_upnp: bool = True
     cache_root: str = "/root/.stremio-server"
-    cache_size: int = 2_147_483_648  # 2 GiB
-    bt_max_connections: int = 200
+    cache_size: int = 19_327_352_832  # 18 GiB download-cache budget (must exceed your largest file)
+    cache_evict_interval: int = 60  # seconds between eviction sweeps
+    cache_evict_grace: int = 300  # don't evict torrents served within this many seconds
+    bt_max_connections: int = 400
     transcode_profile: str | None = None  # set by HW autodetect (later stage)

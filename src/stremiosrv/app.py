@@ -36,6 +36,9 @@ def build_app() -> FastAPI:
 
     Run with:  uvicorn stremiosrv.app:build_app --factory --host 0.0.0.0 --port <p>
     """
+    import threading
+
+    from stremiosrv.cache import run_evictor
     from stremiosrv.torrent.engine import Engine
     from stremiosrv.transcode.converter import Converter
     from stremiosrv.transcode.profiler import detect_profile
@@ -48,4 +51,11 @@ def build_app() -> FastAPI:
         max_connections=settings.bt_max_connections,
     )
     converter = Converter(settings.cache_root, settings.transcode_profile)
+    # Background cache eviction so the download cache stays under budget during long real-world use.
+    threading.Thread(
+        target=run_evictor,
+        args=(settings.cache_root, settings.cache_size, engine),
+        kwargs={"interval": settings.cache_evict_interval, "grace": settings.cache_evict_grace},
+        daemon=True,
+    ).start()
     return create_app(settings=settings, engine=engine, converter=converter)
