@@ -1,6 +1,20 @@
 from fastapi.testclient import TestClient
 
+from stremiosrv.api.subs import parse_stream_url
 from stremiosrv.app import create_app
+
+
+def test_parse_stream_url():
+    assert parse_stream_url("https://h:12470/" + "a" * 40 + "/6?") == ("a" * 40, 6)
+    assert parse_stream_url("/tmp/movie.mkv") is None
+
+
+def test_opensub_hash_null_for_unresolvable_url():
+    # a stream URL with no engine -> {"result": null}, NOT a 500
+    c = TestClient(create_app())
+    r = c.get("/opensubHash", params={"videoUrl": "https://h:12470/" + "a" * 40 + "/6"})
+    assert r.status_code == 200
+    assert r.json()["result"] is None
 
 
 def test_opensub_hash_route(tmp_path):
