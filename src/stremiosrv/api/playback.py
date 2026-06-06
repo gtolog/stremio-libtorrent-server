@@ -32,9 +32,15 @@ def serialize_stats(handle, idx: int | None = None) -> dict:
             files.append({
                 "path": fs.file_path(i), "name": fs.file_name(i),
                 "length": fs.file_size(i), "offset": fs.file_offset(i),
-                "__cacheEvents": True,
             })
-    out = {
+    # stream_* are REQUIRED top-level by stremio-core's Statistics struct (defaults; per-file below).
+    stream_len, stream_name, stream_progress = 0, "", 0.0
+    if idx is not None and ti:
+        flen = ti.files().file_size(idx)
+        stream_len = flen
+        stream_name = ti.files().file_name(idx)
+        stream_progress = (st.total_done / flen) if flen else 0.0
+    return {
         "infoHash": str(st.info_hashes.v1), "name": (ti.name() if ti else ""),
         "peers": st.num_peers, "unchoked": unchoked, "queued": 0, "unique": st.num_peers,
         "connectionTries": 0, "swarmPaused": False,
@@ -42,15 +48,18 @@ def serialize_stats(handle, idx: int | None = None) -> dict:
         "selections": [], "wires": wires, "files": files,
         "downloaded": st.total_done, "uploaded": st.total_upload,
         "downloadSpeed": st.download_rate, "uploadSpeed": st.upload_rate,
-        "sources": handle.tracker_sources(), "peerSearchRunning": True, "opts": {},
+        "sources": [], "peerSearchRunning": True,
+        "streamLen": stream_len, "streamName": stream_name, "streamProgress": stream_progress,
+        # opts MUST be a fully-populated Options object or stremio-core fails to parse the whole
+        # stats response (-> blank Statistics panel). Values are nominal; the panel doesn't show them.
+        "opts": {
+            "connections": 400, "dht": True, "tracker": True, "virtual": True,
+            "path": "", "handshakeTimeout": 5000, "timeout": 2000,
+            "growler": {"flood": 0, "pulse": 52428800},
+            "peerSearch": {"min": 40, "max": 150, "sources": []},
+            "swarmCap": {"maxSpeed": 12582912, "minPeers": 20},
+        },
     }
-    if idx is not None and ti:
-        fs = ti.files()
-        out.update({
-            "streamProgress": (st.total_done / fs.file_size(idx)) if fs.file_size(idx) else 0,
-            "streamName": fs.file_name(idx), "streamLen": fs.file_size(idx),
-        })
-    return out
 
 
 def _engine(request: Request):

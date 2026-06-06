@@ -58,20 +58,6 @@ class Handle:
             })
         return wires, unchoked
 
-    def tracker_sources(self) -> list[dict]:
-        """Stremio `sources` shape: one entry per tracker + a DHT entry."""
-        out: list[dict] = []
-        try:
-            for t in self._h.trackers():
-                url = t["url"] if isinstance(t, dict) else getattr(t, "url", "")
-                out.append({"numFound": -1, "numFoundUniq": -1, "numRequests": -1,
-                            "url": f"tracker:{url}", "lastStarted": ""})
-        except Exception:  # noqa: BLE001
-            pass
-        out.append({"numFound": -1, "numFoundUniq": -1, "numRequests": -1,
-                    "url": f"dht:{self.info_hash()}", "lastStarted": ""})
-        return out
-
     # --- file / piece geometry (metadata must be present) ---
     def piece_length(self) -> int:
         return self._h.torrent_file().piece_length()
