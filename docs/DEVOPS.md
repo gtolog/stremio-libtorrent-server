@@ -14,14 +14,28 @@ replacement for the closed Stremio `server.js`: it implements the streaming-serv
 - (Optional) An Intel iGPU exposed at `/dev/dri/renderD128` for the VAAPI fallback.
 
 ### Build & run
+The image **always starts**, with or without a GPU — it autodetects the transcode profile at startup
+(NVIDIA → `nvenc-linux`, else a VAAPI render node → `vaapi-renderD128`, else CPU/libx264). The GPU is
+optional at the orchestration level too, so a missing/broken NVIDIA driver never blocks startup.
+
+**Recommended — durable launcher** (auto-detects GPU, degrades to VAAPI/CPU, safe to re-run):
 ```sh
-docker compose build
-docker compose up -d
-docker compose ps          # STATUS should show (healthy) once the healthcheck passes
+docker build -t stremio-libtorrent-server:dev .
+DATA=/path/with/certificates.pem ./docker/launch.sh
 curl -fsS http://<host>:11470/health
+curl http://<host>:11470/hwaccel-profiler   # shows the autodetected profile (null = CPU)
 ```
-The image autodetects the transcode profile at startup (NVIDIA → `nvenc-linux`, else a VAAPI render
-node → `vaapi-renderD128`, else CPU/libx264). Verify with `curl http://<host>:11470/hwaccel-profiler`.
+
+**Or with compose** — the base is CPU/VAAPI-safe (starts anywhere); add the GPU overlay only on
+hosts with the NVIDIA container runtime:
+```sh
+docker compose up -d                                   # CPU/VAAPI (always works)
+docker compose -f compose.yaml -f compose.gpu.yaml up -d   # + NVENC (NVIDIA hosts)
+docker compose ps          # STATUS should show (healthy) once the healthcheck passes
+```
+> Do **not** put `--gpus all` / `runtime: nvidia` in the always-on path: those hard-fail at container
+> creation when the NVIDIA runtime/driver is absent, taking the service down. `launch.sh` (or the
+> compose overlay split) keeps startup resilient.
 
 ### Configuration (env vars, prefix `STREMIOSRV_`)
 | Var | Default | Purpose |
