@@ -1,111 +1,162 @@
-# stremio-libtorrent-server
+# 🎬 stremio-libtorrent-server
 
-> ✅ **Working & published.** All stages built and verified on hardware. The all-in-one image
-> (bundled web player + engine) runs with one command — see **[Quick Start](QUICKSTART.md)**:
->
-> ```sh
-> docker run -d --name stremio -e IPADDRESS=<your-server-ip> \
->   -p 8080:8080 -p 12470:12470 -p 6881:6881/tcp -p 6881:6881/udp \
->   -v stremio-data:/root/.stremio-server androshack/stremio-libtorrent-server
-> ```
-> Then open `http://<ip>:8080`, or the trusted-HTTPS URL in `docker logs stremio` (TV-ready).
+### Your own Stremio streaming server — open, fast, and *yours*. One command to run it. 🚀
 
-A self-hosted, **Stremio-compatible streaming server** that replaces Stremio's closed `server.js`
-with an open Python implementation — a **libtorrent** torrent engine you can actually control
-(inbound peers, sequential *"head & holes"* piece picking, endgame, SSD cache) plus a hardware
-**transcode** pipeline (NVENC / VAAPI). Unmodified Stremio clients (Android TV, Tizen, webOS, the
-web player) just point their **streaming-server URL** at it — no client changes.
+Self-host the **complete Stremio experience** — the **web player** *and* a powerful, open
+**BitTorrent streaming engine** — in a single container on your own hardware. Point any Stremio
+client (browser, Android TV, Tizen, webOS, desktop) at it and press play.
 
-## Why
+No subscription. No tracking. No black box. **100% free and open — our gift to the community.** 💛
+
+[![Docker Hub](https://img.shields.io/badge/Docker%20Hub-androshack%2Fstremio--libtorrent--server-2496ED?logo=docker&logoColor=white)](https://hub.docker.com/r/androshack/stremio-libtorrent-server)
+[![License: MIT](https://img.shields.io/badge/License-MIT-3DA639.svg)](LICENSE)
+
+---
+
+## ✨ Why you'll love it
+
+- **🚀 Install in one command.** `docker run …` — that's the whole setup. No building, no config files.
+- **📺 Just works on TVs.** Automatic **trusted HTTPS** (a real Let's Encrypt cert) that smart TVs actually accept — zero certificate headaches.
+- **⚡ Faster, more reliable.** Unlike the closed stock server, this one **accepts inbound peers** and fetches **playhead-first**, so streams start quicker and hold up on thin swarms.
+- **🎛️ Truly yours to control.** Real dials for cache, buffering, peers, and transcode — tune deeply, or never touch a thing.
+- **🖥️ Hardware transcode, optional.** Intel **VAAPI** / NVIDIA **NVENC** when available, graceful CPU fallback — and a missing GPU never stops it from starting.
+- **🧩 Your addons, your choice.** It's **neutral infrastructure**: it streams whatever a Stremio addon hands it. It bundles no content and is not a source.
+- **🔓 Open source.** Read it, change it, trust it.
+
+---
+
+## 🚀 Quick Start — anyone can do this
+
+**1.** Install [Docker](https://docs.docker.com/get-docker/).
+**2.** Run one command — swap `YOUR_SERVER_IP` for your machine's LAN IP (e.g. `192.168.1.50`):
+
+```sh
+docker run -d --name stremio --restart unless-stopped \
+  -e IPADDRESS=YOUR_SERVER_IP \
+  -p 8080:8080 -p 12470:12470 -p 6881:6881/tcp -p 6881:6881/udp \
+  -v stremio-data:/root/.stremio-server \
+  androshack/stremio-libtorrent-server
+```
+
+**3.** Open it:
+- 🌐 **In a browser (same network):** `http://YOUR_SERVER_IP:8080`
+- 🔒 **Trusted HTTPS (and TVs):** run `docker logs stremio` and use the printed URL — it looks like
+  `https://192-168-1-50.519b6502d940.stremio.rocks:12470`.
+
+Sign into Stremio, add your addons, press play. 🍿
+*(Prefer a file? Grab [`compose.hub.yaml`](compose.hub.yaml) → `IPADDRESS=YOUR_SERVER_IP docker compose -f compose.hub.yaml up -d`.)*
+
+---
+
+## 📺 On your TV
+
+Smart TVs insist on a **trusted** HTTPS connection — a self-signed cert won't do. Set `IPADDRESS`
+and this server fetches a real Let's Encrypt certificate for you automatically (via Stremio's
+`*.stremio.rocks` magic DNS, which maps that long URL back to your server's IP — even on your LAN).
+In the TV's Stremio app, set the **Streaming Server URL** to the `…stremio.rocks:12470` address shown
+by `docker logs stremio`.
+
+---
+
+## 🌍 Want the *full* swarm? Forward one port.
+
+A lot of BitTorrent's speed comes from peers reaching **you** — and home routers block that by
+default. For maximum peers and throughput, **forward port `6881` (TCP *and* UDP)** on your router to
+your server. It works fine without forwarding — you'll just reach fewer peers on sparse torrents.
+(Unlike the stock server, this one actually *listens* for inbound peers, so the forward genuinely pays off.)
+
+---
+
+## 🔧 Advanced — tune it your way
+
+Everything is a plain `-e NAME=value` environment variable:
+
+| Setting | Default | What it does |
+|---|---|---|
+| `IPADDRESS` | *(unset)* | Your server IP → auto **trusted TV cert** via `*.stremio.rocks`. Unset → self-signed. |
+| `SERVER_URL` | auto | URL the web player targets. Set for a custom domain. |
+| `STREMIOSRV_CACHE_SIZE` | `19327352832` (18 GiB) | Download-cache budget in bytes (LRU-evicted). Keep it **above your largest file**. |
+| `STREMIOSRV_READAHEAD_BYTES` | `134217728` (128 MiB) | Playhead buffer — bigger absorbs more swarm jitter (fewer rebuffers). |
+| `STREMIOSRV_BT_LISTEN_PORT` | `6881` | BitTorrent peer port (the one to forward). |
+| `STREMIOSRV_BT_MAX_CONNECTIONS` | `400` | Max peer connections. |
+| `DOMAIN` | `localhost` | CN for the self-signed cert (when not using `IPADDRESS`). |
+| `CERT_FILE` | `certificates.pem` | Bring-your-own cert (full-chain + key) filename in the data volume. |
+
+**GPU transcode** (only for clients that can't direct-play):
+- Intel VAAPI → add `--device /dev/dri:/dev/dri`
+- NVIDIA NVENC → use the **[`docker/launch.sh`](docker/launch.sh)** launcher, which probes the GPU and
+  degrades gracefully (a broken or absent driver never blocks startup).
+
+**Your own domain instead of stremio.rocks:** put a full-chain+key PEM as `certificates.pem` in the
+data volume, set `-e SERVER_URL=https://yourdomain:12470`, and leave `IPADDRESS` unset.
+
+**Ports:** `8080` web+API (HTTP/LAN) · `12470` web+API (HTTPS) · `11470` direct API · `6881` BitTorrent.
+
+📖 Full ops guide: [`docs/DEVOPS.md`](docs/DEVOPS.md) · TLS deep-dive: [`docs/cert-guide.md`](docs/cert-guide.md).
+
+---
+
+## 🧠 Why it exists
 
 The stock Stremio streaming server is closed-source and, in practice:
+- **outbound-only** — it never listens for inbound peers, so you only reach the connectable half of a swarm;
+- it **hides the torrent levers** — no real control over piece picking, connectivity, or cache.
 
-- **outbound-only** — it never listens for inbound BitTorrent peers, so you can only reach the
-  connectable half of a swarm (verified at runtime: nothing binds the BT port);
-- it **hides the torrent levers** — no real control over piece picking, endgame, or connectivity.
+This opens it up: **inbound connectivity + playhead-first piece picking** for faster starts and better
+reliability on sparse swarms, **plus** hardware transcode for clients that can't direct-play — all in
+an image you run yourself. It is **content-neutral infrastructure**: it streams whatever infohash a
+Stremio *addon* hands it, and bundles or surfaces nothing.
 
-This server opens that up: **inbound connectivity + sequential piece picking** for better
-reliability on sparse swarms and faster starts, while **preserving hardware transcode** for clients
-that can't direct-play (or for bitrate-capped remote viewing).
+## 🏗️ Under the hood
 
-It is **content-neutral infrastructure** — it streams whatever infohash a Stremio *addon* hands it.
-It is **not** a scraper/source addon and does not bundle or surface any content.
-
-## Relationship to `stremio-docker` (companion fork)
-
-This repo is the **server brain**. The container **image** it runs in comes from the companion
-dual-GPU fork:
-
-➡️ **[andrewhack/stremio-docker](https://github.com/andrewhack/stremio-docker)** — image `stremio-docker-dual`
-(jellyfin-ffmpeg with NVENC + Intel VAAPI, nginx + TLS, the bundled web player, CUDA/VAAPI runtime).
+One image, two source repos. The runtime image is built **`FROM`** a GPU/ffmpeg base (the companion
+fork) and layers the open server on top:
 
 ```
-┌─────────────────────────── stremio-docker-dual (the fork) ───────────────────────────┐
-│  jellyfin-ffmpeg (NVENC/VAAPI) · nginx (TLS) · bundled web player · CUDA/VAAPI runtime  │
-└───────────────────────────────────────────────▲───────────────────────────────────────┘
-                                                 │ FROM  (base image)
-┌────────────────────────── stremio-libtorrent-server (this repo) ──────────────────────┐
-│  FastAPI + libtorrent server  →  replaces the closed server.js on :11470               │
-│  (nginx proxies client requests here instead of to server.js)                          │
-└────────────────────────────────────────────────────────────────────────────────────────┘
+┌─────────────── stremio-docker-dual  (companion fork, MIT) ──────────────┐
+│ jellyfin-ffmpeg (NVENC/VAAPI) · nginx · bundled Stremio web player        │
+└───────────────────────────────▲──────────────────────────────────────────┘
+                                 │ FROM
+┌─────────────── stremio-libtorrent-server  (this repo) ──────────────────┐
+│ FastAPI + libtorrent engine · nginx serves web player + proxies the API   │
+│ → one container: web player + open engine on a single origin              │
+└────────────────────────────────────────────────────────────────────────────┘
 ```
 
-The fork keeps building/validating the transcode toolchain + packaging; this repo swaps the
-**server process**. (See the fork's `NVIDIA-GPU.md` for the GPU/Proxmox/LXC setup.)
+Companion fork: **[andrewhack/stremio-docker](https://github.com/andrewhack/stremio-docker)**
+(builds the `stremio-docker-dual` image; see its `NVIDIA-GPU.md` for GPU/Proxmox setup).
 
-## Status / roadmap
+Modules: `api/` (Stremio HTTP API) · `torrent/` (libtorrent + piece-picker) · `stream/` (Range file
+server) · `transcode/` (ffmpeg NVENC/VAAPI → HLS) · `config.py` · `health.py`. Protocol reference:
+[`docs/protocol-map.md`](docs/protocol-map.md).
+
+## ✅ Status
+
+All stages shipped and verified on hardware:
 
 | Stage | Scope | State |
 |---|---|---|
-| 0 | Protocol map + conformance fixtures (`docs/protocol-map.md`) | ✅ done |
-| 1 | FastAPI skeleton · Pydantic config · `/health` (ITCOM contract) | ✅ done |
-| 2 | Torrent core + direct play (libtorrent engine, Range serving, stats, **inbound peers**, head & holes) | ✅ done — verified on hardware (inbound LISTEN; 206 + real bytes from a torrent; live HTTP) |
-| 3 | Transcode / HLS (`hlsv2`, probe, hwaccel-profiler) reusing the dual-GPU ffmpeg | ✅ done — verified in-image (NVENC HEVC→H264 + AAC; fMP4 HLS served over HTTP) |
-| 4 | Subtitles · `opensubHash` · casting | ✅ done — verified in-image (opensubHash matches independent calc; embedded sub list + WebVTT extract) |
-| 5 | Productionise — Docker/compose, DEVOPS.md, Ansible/Jenkins, AHM | ✅ done — compose (GPU + AHM labels + healthcheck) + [`docs/DEVOPS.md`](docs/DEVOPS.md) |
-| 6 | All-in-one (bundled web player + engine, single origin) · TV-trusted SSL (`*.stremio.rocks`, zero-config) · GPU-optional · **Docker Hub** | ✅ done — `androshack/stremio-libtorrent-server` (one-command deploy verified; see [Quick Start](QUICKSTART.md)) |
+| 0–1 | Protocol map · FastAPI skeleton · `/health` | ✅ |
+| 2 | Torrent core + direct play (inbound peers, head & holes, Range serving, stats) | ✅ |
+| 3 | Transcode / HLS (`hlsv2`, NVENC/VAAPI) | ✅ |
+| 4 | Subtitles · `opensubHash` · casting | ✅ |
+| 5 | Productionise — compose, DEVOPS, healthcheck, AHM | ✅ |
+| 6 | All-in-one (web player + engine) · TV-trusted SSL · GPU-optional · Docker Hub | ✅ |
 
-## Deploy
-
-```sh
-docker compose build
-docker compose up -d
-curl -fsS http://<host>:11470/health      # ITCOM health contract
-curl http://<host>:11470/hwaccel-profiler # shows the autodetected transcode profile
-```
-
-Full deployment, configuration, ports, and human activities: [`docs/DEVOPS.md`](docs/DEVOPS.md).
-
-## Architecture (target)
-
-- **`api/`** — FastAPI routers implementing the Stremio streaming-server HTTP API (the exact route
-  surface is documented in [`docs/protocol-map.md`](docs/protocol-map.md)).
-- **`torrent/`** — `libtorrent` session wrapper + piece-picker (range → piece priorities).
-- **`stream/`** — HTTP Range parsing + file server (awaits pieces, streams byte ranges).
-- **`transcode/`** *(Stage 3)* — capability fingerprint → jellyfin-ffmpeg (NVENC/VAAPI) → HLS.
-- **`config.py`** — Pydantic settings (`STREMIOSRV_*` env). **`health.py`** — `/health`.
-
-## Development
+## 🛠️ Development
 
 ```bash
 uv sync
 uv run pytest -q          # unit tests
 uv run ruff check .       # lint
 uv run uvicorn stremiosrv.app:create_app --factory --host 0.0.0.0 --port 11470
-curl -s localhost:11470/health   # {"status":"healthy",...}
 ```
 
-Config via `STREMIOSRV_*` env vars (see `src/stremiosrv/config.py`): `HTTP_PORT`, `BT_LISTEN_PORT`,
-`CACHE_ROOT`, `CACHE_SIZE`, `BT_MAX_CONNECTIONS`, `ENABLE_UPNP`, `TRANSCODE_PROFILE`.
+## 📜 License & spirit
 
-## Docs
+**MIT** — built on the MIT-licensed [stremio-docker](https://github.com/tsaridas/stremio-docker) fork.
 
-- [`docs/protocol-map.md`](docs/protocol-map.md) — the Stremio streaming-server protocol (routes + captured shapes).
-- [`docs/plans/`](docs/plans/) — staged implementation plans.
-- [`scripts/capture-fixtures.sh`](scripts/capture-fixtures.sh) — capture conformance fixtures from a stock server.
+This is **not a commercial product, and we don't monetize it.** It's our contribution to the people
+who just want their own open, private streaming server. Use it, share it, make it better. 💛
 
-## Notes
-
-- Test torrents must be **legal** (Internet Archive, public-domain, distro ISOs); fixtures are
-  sanitized (no infohashes / peer IPs / content titles committed).
-- Companion image + GPU/Proxmox setup: **[andrewhack/stremio-docker](https://github.com/andrewhack/stremio-docker)**.
+> Keep it legal: this is neutral infrastructure for content **you** have the right to stream.
