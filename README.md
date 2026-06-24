@@ -1,7 +1,14 @@
 # stremio-libtorrent-server
 
-> ⚠️ **Early development.** The protocol is mapped and the service skeleton runs; the torrent
-> engine and transcode pipeline are being built stage by stage (see [Status](#status--roadmap)).
+> ✅ **Working & published.** All stages built and verified on hardware. The all-in-one image
+> (bundled web player + engine) runs with one command — see **[Quick Start](QUICKSTART.md)**:
+>
+> ```sh
+> docker run -d --name stremio -e IPADDRESS=<your-server-ip> \
+>   -p 8080:8080 -p 12470:12470 -p 6881:6881/tcp -p 6881:6881/udp \
+>   -v stremio-data:/root/.stremio-server androshack/stremio-libtorrent-server
+> ```
+> Then open `http://<ip>:8080`, or the trusted-HTTPS URL in `docker logs stremio` (TV-ready).
 
 A self-hosted, **Stremio-compatible streaming server** that replaces Stremio's closed `server.js`
 with an open Python implementation — a **libtorrent** torrent engine you can actually control
@@ -56,6 +63,7 @@ The fork keeps building/validating the transcode toolchain + packaging; this rep
 | 3 | Transcode / HLS (`hlsv2`, probe, hwaccel-profiler) reusing the dual-GPU ffmpeg | ✅ done — verified in-image (NVENC HEVC→H264 + AAC; fMP4 HLS served over HTTP) |
 | 4 | Subtitles · `opensubHash` · casting | ✅ done — verified in-image (opensubHash matches independent calc; embedded sub list + WebVTT extract) |
 | 5 | Productionise — Docker/compose, DEVOPS.md, Ansible/Jenkins, AHM | ✅ done — compose (GPU + AHM labels + healthcheck) + [`docs/DEVOPS.md`](docs/DEVOPS.md) |
+| 6 | All-in-one (bundled web player + engine, single origin) · TV-trusted SSL (`*.stremio.rocks`, zero-config) · GPU-optional · **Docker Hub** | ✅ done — `androshack/stremio-libtorrent-server` (one-command deploy verified; see [Quick Start](QUICKSTART.md)) |
 
 ## Deploy
 
