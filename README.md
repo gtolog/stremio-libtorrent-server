@@ -43,7 +43,7 @@ docker run -d --name stremio --restart unless-stopped \
 ```
 
 **3.** Open it:
-- 🌐 **In a browser (same network):** `http://YOUR_SERVER_IP:8080`
+- 🌐 **In a browser (same network):** `http://YOUR_SERVER_IP:8080` — *browser playback covers MP4/H.264; for MKV/HEVC content use the **desktop or TV** apps (browsers can't decode those).*
 - 🔒 **Trusted HTTPS (and TVs):** run `docker logs stremio` and use the printed URL — **it looks like**
   `https://192-168-1-50.519b6502d940.stremio.rocks:12470` *(replace `192-168-1-50` with your internal IP, dots written as dashes)*.
 

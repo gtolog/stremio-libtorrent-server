@@ -5,8 +5,9 @@ import os
 import re
 import subprocess
 import time
+import urllib.request
 
-from fastapi import APIRouter, HTTPException, Request, Response
+from fastapi import APIRouter, HTTPException, Query, Request, Response
 
 from stremiosrv.stream.fileserver import file_disk_path
 from stremiosrv.subs.opensub import opensubtitles_hash
@@ -21,6 +22,30 @@ _STREAM_RE = re.compile(r"/([0-9a-fA-F]{40})/(\d+)")
 def parse_stream_url(url: str) -> tuple[str, int] | None:
     m = _STREAM_RE.search(url)
     return (m.group(1).lower(), int(m.group(2))) if m else None
+
+
+def srt_to_vtt(text: str) -> str:
+    """Convert a SubRip (.srt) body to WebVTT (browser <track>-compatible). Pass through if already
+    WebVTT. Only difference that matters: SRT timestamps use a comma before milliseconds, VTT a dot."""
+    text = text.lstrip("﻿")  # strip UTF-8 BOM
+    if text.lstrip().startswith("WEBVTT"):
+        return text
+    text = re.sub(r"(\d{2}:\d{2}:\d{2}),(\d{3})", r"\1.\2", text)
+    return "WEBVTT\n\n" + text
+
+
+@router.get("/subtitles.vtt")
+def subtitles_proxy(source: str = Query(alias="from")) -> Response:
+    """Fetch an external subtitle (Stremio addons pass `?from=<url>`) and serve it as WebVTT on our
+    own origin — so the browser gets it with CORS instead of being blocked cross-origin."""
+    if not source.lower().startswith(("http://", "https://")):
+        raise HTTPException(status_code=400, detail="only http(s) subtitle sources are allowed")
+    try:
+        with urllib.request.urlopen(source, timeout=10) as r:  # noqa: S310 — scheme checked above
+            raw = r.read()
+    except Exception as e:  # noqa: BLE001
+        raise HTTPException(status_code=502, detail="failed to fetch subtitle") from e
+    return Response(content=srt_to_vtt(raw.decode("utf-8", errors="replace")), media_type="text/vtt")
 
 
 def _ensure_edges(handle, idx: int, edge: int = 65536, timeout: float = 15.0) -> bool:

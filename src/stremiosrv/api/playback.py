@@ -3,7 +3,7 @@ import time
 from fastapi import APIRouter, Request, Response
 from fastapi.responses import StreamingResponse
 
-from stremiosrv.stream.fileserver import wait_and_read
+from stremiosrv.stream.fileserver import content_type_for, wait_and_read
 from stremiosrv.stream.ranges import parse_range
 
 router = APIRouter()
@@ -118,6 +118,9 @@ def serve(info_hash: str, idx: int, request: Request):
         "Accept-Ranges": "bytes",
         "Content-Range": f"bytes {start}-{end}/{total}",
         "Content-Length": str(end - start + 1),
+        # Without a media type the browser <video> refuses the stream ("video not supported");
+        # mpv/desktop ignore it. Derive from the file extension.
+        "Content-Type": content_type_for(h.file_path(idx)),
         **DLNA_HEADERS,
     }
     if request.method == "HEAD":
