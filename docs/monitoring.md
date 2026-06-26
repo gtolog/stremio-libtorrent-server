@@ -22,14 +22,14 @@ changed protocol. Two detectors (`scripts/`, stdlib only, exit non-zero on a pro
 - **`synthetic_playback.py`** — end-to-end "did it actually break": adds a CC torrent (Big Buck Bunny),
   HEADs the stream (expects `206` + `Content-Range` + `Content-Type`), and shape-checks `/settings` +
   `/stats.json`. Run against the live server.
-  `SERVER=https://stremio.karadimov.info:12470 python3 scripts/synthetic_playback.py`
+  `SERVER=https://YOUR_SERVER:12470 python3 scripts/synthetic_playback.py`
 - **`check_stremio_releases.py`** — earliest warning: polls GitHub for new `Stremio/stremio-web`
   (and the fork) tags; alerts on a new release so we re-test the protocol before users hit it.
 
 ### Scheduling (cron — adjust to taste / move to Ansible)
 ```cron
 # protocol smoke test, hourly
-0 * * * * SERVER=https://stremio.karadimov.info:12470 python3 /path/scripts/synthetic_playback.py || /path/notify.sh "stremio playback FAILED"
+0 * * * * SERVER=https://YOUR_SERVER:12470 python3 /path/scripts/synthetic_playback.py || /path/notify.sh "stremio playback FAILED"
 # upstream release watch, daily
 0 9 * * * python3 /path/scripts/check_stremio_releases.py || /path/notify.sh "new Stremio release — re-test protocol"
 ```
