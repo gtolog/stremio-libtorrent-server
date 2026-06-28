@@ -194,6 +194,10 @@ class Engine:
         self._touch(h.info_hash())
         return h
 
+    def active(self) -> list[Handle]:
+        """Live torrent handles that have metadata — for the 'now playing' / active-streams view."""
+        return [h for h in self._torrents.values() if h.has_metadata()]
+
     def get(self, info_hash: str) -> Handle | None:
         h = self._torrents.get(info_hash.lower())
         if h is not None:

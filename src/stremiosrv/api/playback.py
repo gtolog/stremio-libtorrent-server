@@ -62,8 +62,34 @@ def serialize_stats(handle, idx: int | None = None) -> dict:
     }
 
 
+def serialize_active(handle) -> dict:
+    """Compact 'now playing' entry for the active-streams list (lighter than the full stats shape)."""
+    st = handle.status()
+    ti = handle.torrent_file()
+    return {
+        "infoHash": str(st.info_hashes.v1),
+        "name": ti.name() if ti else "",
+        "downloadSpeed": st.download_rate,
+        "uploadSpeed": st.upload_rate,
+        "peers": st.num_peers,
+        "downloaded": st.total_done,
+        "uploaded": st.total_upload,
+        "progress": round(st.progress, 4),  # overall torrent completion, 0..1
+    }
+
+
 def _engine(request: Request):
     return getattr(request.app.state, "engine", None)
+
+
+@router.get("/active.json")
+def active_streams(request: Request) -> list:
+    """Torrents currently loaded — the owner's own activity on their own box, for the appliance
+    'Active streams' card. Content-neutral: names only, no media artwork/sources."""
+    eng = _engine(request)
+    if eng is None:
+        return []
+    return [serialize_active(h) for h in eng.active()]
 
 
 @router.get("/{info_hash}/stats.json")
