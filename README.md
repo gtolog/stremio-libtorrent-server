@@ -107,6 +107,12 @@ and this server fetches a real Let's Encrypt certificate for you automatically (
 In the TV's Stremio app, set the **Streaming Server URL** to the `…stremio.rocks:12470` address shown
 by `docker logs stremio`.
 
+> **Note — the Stremio _desktop_ app** (v6) bundles its own streaming server and re‑selects
+> `127.0.0.1` on restart even when you point it at a remote, so it won't reliably use this server.
+> Use a **TV app** (Samsung/LG — the URL sticks) or the **browser** to use this server as your
+> backend; on desktop it keeps its built‑in server. (Reporting a stock `serverVersion` doesn't change
+> this — it's the desktop's own preference for its bundled server.)
+
 ---
 
 ## 🌍 Want the *full* swarm? Forward one port.
