@@ -9,6 +9,9 @@ def test_settings_shape():
     assert set(b) >= {"options", "values", "baseUrl"}
     assert "btMaxConnections" in b["values"]
     assert b["values"]["cacheRoot"].endswith(".stremio-server")
+    # Must look like a real Stremio server version or native clients (desktop v6) reject us and
+    # fall back to their bundled 127.0.0.1 server.
+    assert b["values"]["serverVersion"] == "4.20.16"
 
 
 def test_base_url_reflects_request():
