@@ -33,6 +33,24 @@ def test_cache_list_marks_active(monkeypatch):
     assert body[0]["infoHash"] == "deadbeef"
 
 
+def test_cache_list_idle_item_gets_infohash_from_index(monkeypatch):
+    """An item not in the live engine map gets infoHash from the persisted index, active=False."""
+    from stremiosrv import cache as cachemod
+    monkeypatch.setattr(
+        cachemod, "scan_cache",
+        lambda root: [{"name": "a.iso", "size": 10, "mtime": 1.0}],
+    )
+    monkeypatch.setattr(
+        cachemod, "load_name_index",
+        lambda root: {"a.iso": "cafebabe"},
+    )
+    client = TestClient(create_app())  # engine is None -> no live entry
+    body = client.get("/cache.json").json()
+    assert body == [
+        {"name": "a.iso", "size": 10, "mtime": 1.0, "active": False, "infoHash": "cafebabe"}
+    ]
+
+
 def test_cache_remove_rejects_unsafe_names():
     client = TestClient(create_app())
     for bad in ["../x", "a/b", "..", ".", ""]:

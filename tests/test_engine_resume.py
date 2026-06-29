@@ -6,6 +6,8 @@ pytestmark = pytest.mark.integration
 
 lt = pytest.importorskip("libtorrent")
 
+from stremiosrv import cache as cachemod  # noqa: E402
+
 # A tiny, legal, well-seeded torrent (Debian netinst). Replace infohash/magnet if the fixture rots.
 DEBIAN_MAGNET = (
     "magnet:?xt=urn:btih:6f84758b0ddd8dc05840bf932a77935d8b5b8b93"
@@ -35,6 +37,29 @@ def test_pin_is_pinned_and_pinned_status(tmp_path):
     status = eng.pinned_status()
     assert len(status) >= 1
     assert status[0]["infoHash"] == ih
+    eng.shutdown()
+
+
+def test_name_index_written_on_save_resume(tmp_path):
+    from stremiosrv.torrent.engine import Engine
+    eng = Engine(listen_port=0, cache_root=str(tmp_path))
+    h = eng.add(DEBIAN_MAGNET)
+    deadline = time.time() + 60
+    while not h.has_metadata() and time.time() < deadline:
+        time.sleep(0.5)
+    assert h.has_metadata(), "metadata never arrived (network?)"
+    eng.save_all_resume()
+    ih = h.info_hash().lower()
+    name = h.name()
+    # wait for the alerts loop to process save_resume_data_alert and write the index
+    deadline = time.time() + 20
+    while deadline > time.time():
+        idx = cachemod.load_name_index(str(tmp_path))
+        if name in idx:
+            break
+        time.sleep(0.5)
+    assert name in idx, f"index missing name {name!r}; got {idx}"
+    assert idx[name].lower() == ih
     eng.shutdown()
 
 

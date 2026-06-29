@@ -1,6 +1,7 @@
 import json
 
 from stremiosrv import cache, pins
+from stremiosrv.cache import load_name_index, save_name_index
 
 
 def test_protected_includes_resume_and_pins():
@@ -23,6 +24,16 @@ def test_load_pins_missing_returns_empty(tmp_path):
 
 def test_headroom_is_cache_size_plus_10_percent():
     assert pins.headroom(1000) == 1100
+
+
+def test_name_index_roundtrip(tmp_path):
+    mapping = {"movie.mkv": "deadbeef01", "show.mkv": "cafebabe02"}
+    save_name_index(str(tmp_path), mapping)
+    assert load_name_index(str(tmp_path)) == mapping
+
+
+def test_name_index_missing_returns_empty(tmp_path):
+    assert load_name_index(str(tmp_path)) == {}
 
 
 def test_pin_fits_truth_table():

@@ -21,15 +21,16 @@ def cache_list(request: Request) -> list[dict]:
     """On-disk cache entries (the LRU store) — distinct from /active.json (loaded torrents).
     Content-neutral: names only, the owner's own box."""
     s = request.app.state.settings
-    name_hash = _name_to_hash(request.app.state.engine)
+    live = _name_to_hash(request.app.state.engine)
+    idle = cachemod.load_name_index(s.cache_root)
     out = []
     for item in cachemod.scan_cache(s.cache_root):
-        ih = name_hash.get(item["name"])
+        ih = live.get(item["name"]) or idle.get(item["name"])
         out.append({
             "name": item["name"],
             "size": item["size"],
             "mtime": item["mtime"],
-            "active": ih is not None,
+            "active": item["name"] in live,
             "infoHash": ih,
         })
     return out

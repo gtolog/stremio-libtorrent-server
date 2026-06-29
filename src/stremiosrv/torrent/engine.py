@@ -18,6 +18,7 @@ try:
 except ImportError:  # libtorrent not installed (e.g. test environments without the C extension)
     lt = None  # type: ignore[assignment]
 
+from stremiosrv import cache as cachemod
 from stremiosrv import pins as pinsmod
 from stremiosrv.torrent.trackers import merge_trackers
 
@@ -205,6 +206,14 @@ class Engine:
                             f.write(buf)
                         os.replace(tmp, path)
                     except Exception:  # noqa: BLE001 — never let the alerts thread die
+                        pass
+                    try:
+                        name = a.params.name
+                        if name:
+                            index = cachemod.load_name_index(self._cache_root)
+                            index[name] = ih
+                            cachemod.save_name_index(self._cache_root, index)
+                    except Exception:  # noqa: BLE001 — index is best-effort
                         pass
 
     def save_all_resume(self) -> None:

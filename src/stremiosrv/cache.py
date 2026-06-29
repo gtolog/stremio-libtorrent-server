@@ -7,6 +7,7 @@ is the background loop wired in by the server entrypoint.
 """
 from __future__ import annotations
 
+import json
 import logging
 import os
 import shutil
@@ -43,6 +44,29 @@ def _stat_tree(path: str) -> tuple[int, float]:
             total += st.st_size
             latest = max(latest, st.st_mtime)
     return total, latest
+
+
+NAME_INDEX = ".resume/index.json"  # relative to cache_root: {torrent_name: infohash} for cached torrents
+
+
+def load_name_index(root: str) -> dict:
+    """Persisted name->infohash map (so idle/unloaded cache items can still be pinned). {} on error."""
+    try:
+        with open(os.path.join(root, NAME_INDEX), encoding="utf-8") as f:
+            data = json.load(f)
+        return data if isinstance(data, dict) else {}
+    except (OSError, ValueError):
+        return {}
+
+
+def save_name_index(root: str, mapping: dict) -> None:
+    """Atomically write the name->infohash index (under the eviction-protected .resume dir)."""
+    path = os.path.join(root, NAME_INDEX)
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    tmp = path + ".tmp"
+    with open(tmp, "w", encoding="utf-8") as f:
+        json.dump(mapping, f)
+    os.replace(tmp, path)
 
 
 def scan_cache(root: str, protected: frozenset[str] = PROTECTED) -> list[dict]:
