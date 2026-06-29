@@ -31,3 +31,44 @@ def test_cache_list_marks_active(monkeypatch):
     body = client.get("/cache.json").json()
     assert body[0]["active"] is True
     assert body[0]["infoHash"] == "deadbeef"
+
+
+def test_cache_remove_rejects_unsafe_names():
+    client = TestClient(create_app())
+    for bad in ["../x", "a/b", "..", ".", ""]:
+        resp = client.post("/cache/remove", json={"name": bad})
+        assert resp.status_code == 400, bad
+
+
+def test_cache_remove_rejects_protected():
+    client = TestClient(create_app())
+    resp = client.post("/cache/remove", json={"name": "certificates.pem"})
+    assert resp.status_code == 400
+
+
+def test_cache_remove_valid(monkeypatch):
+    from stremiosrv import cache as cachemod
+    removed = []
+    monkeypatch.setattr(cachemod, "_remove", lambda p: removed.append(p))
+    client = TestClient(create_app())
+    resp = client.post("/cache/remove", json={"name": "a.iso"})
+    assert resp.status_code == 200
+    assert resp.json() == {"ok": True}
+    assert removed and removed[0].endswith("a.iso")
+
+
+def test_cache_remove_stops_active_torrent(monkeypatch):
+    from stremiosrv import cache as cachemod
+    monkeypatch.setattr(cachemod, "_remove", lambda p: None)
+    stopped = []
+
+    class FakeEngine:
+        def name_to_hash(self):
+            return {"a.iso": "deadbeef"}
+
+        def remove(self, ih):
+            stopped.append(ih)
+
+    client = TestClient(create_app(engine=FakeEngine()))
+    client.post("/cache/remove", json={"name": "a.iso"})
+    assert stopped == ["deadbeef"]

@@ -1,4 +1,6 @@
-from fastapi import APIRouter, Request
+import os
+
+from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel
 
 from stremiosrv import cache as cachemod
@@ -31,3 +33,20 @@ def cache_list(request: Request) -> list[dict]:
             "infoHash": ih,
         })
     return out
+
+
+@router.post("/cache/remove")
+def cache_remove(body: RemoveBody, request: Request) -> dict:
+    """Delete one cache entry. Guard: must be a plain direct child of cache_root and not a
+    protected system file."""
+    name = body.name
+    if (not name or name in (".", "..") or os.path.basename(name) != name
+            or name in cachemod.PROTECTED):
+        raise HTTPException(status_code=400, detail="invalid cache entry name")
+    engine = request.app.state.engine
+    if engine is not None:
+        ih = engine.name_to_hash().get(name)
+        if ih:
+            engine.remove(ih)  # stop libtorrent before deleting its files
+    cachemod._remove(os.path.join(request.app.state.settings.cache_root, name))
+    return {"ok": True}
