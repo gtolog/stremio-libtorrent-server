@@ -9,6 +9,7 @@ Targets libtorrent 2.0.x (python bindings).
 from __future__ import annotations
 
 import os
+import shutil
 import threading
 import time
 
@@ -141,7 +142,7 @@ class Handle:
 class Engine:
     def __init__(self, listen_port: int, cache_root: str, max_connections: int = 400,
                  download_rate_limit: int = 0, upload_rate_limit: int = 0,
-                 cache_size: int = 0) -> None:
+                 cache_size: int = 0) -> None:  # 0 = guard disabled; build_app passes settings.cache_size
         self._ses = lt.session({
             "listen_interfaces": f"0.0.0.0:{listen_port}",  # INBOUND listener (stock server lacks this)
             "enable_dht": True,
@@ -258,13 +259,12 @@ class Engine:
                 if ih in self._pinned and h.has_metadata()}
 
     def pin(self, info_hash: str) -> dict:
-        import shutil
         ih = info_hash.lower()
         h = self.get(info_hash) or self.add(info_hash)
         # disk guard: existing incomplete pins + this candidate must still leave headroom
         free = shutil.disk_usage(self._cache_root).free
         pinned_remaining = sum(self._remaining_bytes(self._torrents[p])
-                               for p in self._pinned if p in self._torrents)
+                               for p in self._pinned if p in self._torrents and p != ih)
         candidate_remaining = self._remaining_bytes(h)
         if not pinsmod.pin_fits(free, pinned_remaining, candidate_remaining, self._cache_size):
             raise PinSpaceError(pinsmod.headroom(self._cache_size), free)
