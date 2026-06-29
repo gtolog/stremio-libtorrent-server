@@ -3,6 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from stremiosrv import health
 from stremiosrv.api import casting, handshake, hls, playback, subs
+from stremiosrv.api import cache as cache_api
 from stremiosrv.config import Settings
 
 
@@ -25,6 +26,7 @@ def create_app(settings: Settings | None = None, engine=None, converter=None) ->
     app.include_router(health.router)
     app.include_router(handshake.router)
     app.include_router(playback.router)
+    app.include_router(cache_api.router)
     app.include_router(hls.router)
     app.include_router(subs.router)
     app.include_router(casting.router)
