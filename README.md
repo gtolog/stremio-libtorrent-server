@@ -134,6 +134,25 @@ your server. It works fine without forwarding — you'll just reach fewer peers 
 
 ---
 
+## 🔐 Run behind a VPN
+
+Tunnel only the streaming server's BitTorrent traffic through a VPN (kill-switch + optional
+port-forwarding) using [gluetun](https://github.com/qdm12/gluetun), while your LAN keeps reaching the
+player/admin directly:
+
+```bash
+WIREGUARD_PRIVATE_KEY=... WIREGUARD_ADDRESSES=10.2.0.2/32 IPADDRESS=<your-LAN-IP> \
+  docker compose -f compose.vpn.yaml up -d
+```
+
+Notes:
+- The VPN's **kill-switch** is on by default — if the tunnel drops, torrent traffic stops (no IP leak).
+- **Inbound peers / seeding** need a provider that supports **port-forwarding** (e.g. ProtonVPN, PIA,
+  AirVPN). Without it you still stream, but with outbound-only connectivity.
+- Set `FIREWALL_OUTBOUND_SUBNETS` to your LAN CIDR(s) so the player and admin stay reachable.
+
+---
+
 ## 🔧 Advanced — tune it your way
 
 Everything is a plain `-e NAME=value` environment variable:
