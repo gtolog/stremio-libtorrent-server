@@ -3,8 +3,9 @@
 ### Your own Stremio streaming server — open, fast, and *yours*. One command to run it. 🚀
 
 Self-host the **complete Stremio experience** — the **web player** *and* a powerful, open
-**BitTorrent streaming engine** — in a single container on your own hardware. Point any Stremio
-client (browser, Android TV, Tizen, webOS, desktop) at it and press play.
+**BitTorrent streaming engine** — in a single container on your own hardware. It's a **full torrent
+client**, not just a streamer: it downloads whole files and can **pin favorites to keep & seed**.
+Point any Stremio client (browser, Android TV, Tizen, webOS, desktop) at it and press play.
 
 No subscription. No tracking. No black box. **100% free and open — our gift to the community.** 💛
 
