@@ -11,9 +11,14 @@ explanation, the evidence it's based on, and a concrete fix/mitigation.
   offline-safe, content-neutral, **no LLM**. This is the substrate.
 - **Supported (paid) image → LLM/chatbot layer** on top of the same structured findings: conversational
   "why won't it play?", follow-ups, guided mitigation. Gated by the **same license/entitlement that
-  gates auto-update**, reusing the planned support chatbot (see [[project_stremio_site]] — LangChain +
-  Ollama + MCP, the partner-support pattern). The diagnostic output becomes an MCP tool/resource the
-  chatbot reasons over.
+  gates auto-update**, reusing the planned support chatbot (see [[project_stremio_site]] /
+  [[project_partner_support]] — LangChain + Ollama + MCP). The diagnostic output becomes an MCP
+  tool/resource the chatbot reasons over.
+
+  **Deployment (decided 2026-07-04):** the **chatbot app + MCP servers run in ITCOM infra** (hosted —
+  NOT on the appliance box, which only exposes `/diagnose.json`). **LLM inference = Ollama Cloud (Pro
+  account)** as primary, with the **own Ollama infra** (local GPU models) also available. The appliance
+  stays light; the hosted chatbot pulls the box's diagnostics within the user's authenticated session.
 
 This generalizes the existing config-web "Suggestions" advisor, refocused on playback health.
 
@@ -91,11 +96,12 @@ advisor) — a 1-frame dip isn't "buffering".
 
 ## Open questions
 
-1. **Where the LLM runs.** The appliance HW (N100 / Pi-class) likely can't host a model, so the paid
-   chatbot is realistically the **hosted support portal** ([[project_stremio_site]]) with the box
-   exposing `/diagnose.json`; on-box Ollama only if the hardware allows.
-2. **Privacy / content-neutrality of the paid path.** `/diagnose.json` carries stream metadata
-   (infohash, name). Sending it off-box to a cloud chatbot needs care: send **metrics-only** (strip
-   title/infohash) or keep it strictly inside the user's authenticated session. The partner-support
-   rule applies — per-customer scoping enforced in the MCP/tool layer, never by trusting the LLM.
+1. ~~Where the LLM runs~~ **SETTLED (2026-07-04):** chatbot + MCP in ITCOM infra; LLM = Ollama Cloud
+   (Pro) primary + own Ollama infra; box only exposes `/diagnose.json`. See Deployment above.
+2. **Privacy / content-neutrality of the paid path — sharper now that Ollama Cloud is external.**
+   `/diagnose.json` carries stream metadata (infohash, name). Ollama **Cloud** is a third party, so
+   content-bearing fields must NOT go to it raw: send **metrics-only** (strip title/infohash) to the
+   cloud model, and route any content-bearing reasoning only through the **own Ollama infra** (local),
+   or keep it strictly inside the user's authenticated session. Per-customer scoping stays enforced in
+   the MCP/tool layer, never by trusting the LLM (the partner-support rule).
 3. **Free tier stays fully offline** — no phone-home; the rule engine and panel work with no network.
