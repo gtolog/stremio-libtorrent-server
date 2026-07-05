@@ -119,6 +119,10 @@ def build_app() -> FastAPI:
         seed_policy_interval=settings.seed_policy_interval,
         extra_trackers=parse_tracker_string(settings.extra_trackers),
         tracker_source=tracker_source,
+        adaptive_picking=settings.adaptive_picking,
+        adaptive_low_bytes=settings.adaptive_low_bytes,
+        adaptive_high_bytes=settings.adaptive_high_bytes,
+        adaptive_interval=settings.adaptive_interval,
     )
     engine.load_pins_into_session()
     converter = Converter(settings.cache_root, settings.transcode_profile)

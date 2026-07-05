@@ -64,6 +64,23 @@ def should_stop_seeding(*, pinned: bool, seeding: bool, completed_at: float | No
     return False
 
 
+def adaptive_sequential(buffer_bytes: int, currently_sequential: bool, low: int, high: int) -> bool:
+    """Adaptive piece-picking decision: should the played torrent download strictly in-order?
+
+    Hysteresis on how much is buffered CONTIGUOUSLY ahead of the playhead: once >= `high` we go
+    parallel (return False -> rarest-first, saturate the swarm's throughput to fill/cache the rest);
+    once <= `low` we go back in-order (return True -> guarantee the next pieces); between the marks we
+    hold the current mode (no thrashing). The immediate playhead window stays boosted+deadlined either
+    way, so continuity is protected regardless of this choice. (See the adaptive-piece-picking spec.)"""
+    if high <= 0 or low < 0 or low >= high:
+        return True  # misconfigured -> safe default (today's strict-sequential behaviour)
+    if buffer_bytes >= high:
+        return False
+    if buffer_bytes <= low:
+        return True
+    return currently_sequential
+
+
 class Handle:
     """Thin wrapper over `lt.torrent_handle` exposing only what the API layer needs."""
 
@@ -84,6 +101,9 @@ class Handle:
         # Drives the stop-seeding-on-complete / max-seed-time policy. Paused = we stopped its seeding.
         self.completed_at: float | None = None
         self._paused = False
+        # Adaptive piece-picking state: whether we're currently in strict-sequential mode (matches
+        # focus_file's set_sequential_download(True) default). Toggled by adaptive_tick under the flag.
+        self._adaptive_seq = True
 
     def status(self):
         return self._h.status()
@@ -292,6 +312,35 @@ class Handle:
                 except Exception:  # noqa: BLE001
                     pass
 
+    def adaptive_tick(self, low: int, high: int):
+        """One adaptive-picking step for a playing torrent: measure how much is buffered CONTIGUOUSLY
+        ahead of the playhead and toggle sequential download via adaptive_sequential(). Returns the
+        new sequential mode if it changed, else None. Best-effort; never raises. The playhead window
+        stays boosted+deadlined regardless, so continuity is protected."""
+        try:
+            ti = self._h.torrent_file()
+            if ti is None:
+                return None
+            with self._boosted_lock:
+                if not self._boosted:
+                    return None
+                playhead = min(self._boosted)  # the piece being waited on == the playhead
+            plen = ti.piece_length()
+            npieces = ti.num_pieces()
+            ahead = 0  # contiguous downloaded bytes from the playhead forward (bounded scan)
+            p = playhead
+            while p < npieces and ahead <= high and self._h.have_piece(p):
+                ahead += plen
+                p += 1
+            want_seq = adaptive_sequential(ahead, self._adaptive_seq, low, high)
+            if want_seq != self._adaptive_seq:
+                self._h.set_sequential_download(want_seq)
+                self._adaptive_seq = want_seq
+                return want_seq
+            return None
+        except Exception:  # noqa: BLE001
+            return None
+
     def set_piece_deadline(self, piece: int, ms: int) -> None:
         """Ask libtorrent to fetch this piece within `ms` (urgent, order-independent — enables
         responsive seeking and fetching a trailing moov atom without downloading the whole file)."""
@@ -313,7 +362,10 @@ class Engine:
                  seed_on_complete: bool = True, max_seed_minutes: int = 0,
                  seed_policy_interval: int = 15,
                  extra_trackers: list[str] | None = None,  # operator env trackers, added to every add()
-                 tracker_source=None) -> None:  # optional TrackerSource (live list); None = static only
+                 tracker_source=None,  # optional TrackerSource (live list); None = static only
+                 adaptive_picking: bool = False,  # experimental parallel-fill when buffer is deep
+                 adaptive_low_bytes: int = 0, adaptive_high_bytes: int = 0,
+                 adaptive_interval: float = 2.0) -> None:
         self._ses = lt.session({
             # INBOUND listener (stock server lacks this) — dual-stack so IPv6 peers can reach us too;
             # a host without IPv6 just fails that bind and keeps IPv4 (libtorrent degrades gracefully).
@@ -374,6 +426,14 @@ class Engine:
         self._seed_policy_interval = seed_policy_interval
         self._policy = threading.Thread(target=self._seed_policy_loop, daemon=True)
         self._policy.start()
+        # Adaptive piece-picking (experimental, opt-in). Thread only runs when enabled, so default
+        # behaviour is byte-for-byte unchanged (the "never worse than today" guardrail).
+        self._adaptive_picking = adaptive_picking
+        self._adaptive_low = adaptive_low_bytes
+        self._adaptive_high = adaptive_high_bytes
+        self._adaptive_interval = max(0.5, adaptive_interval)
+        if self._adaptive_picking and self._adaptive_high > 0:
+            threading.Thread(target=self._adaptive_loop, daemon=True).start()
 
     def _touch(self, info_hash: str) -> None:
         self._last_access[info_hash.lower()] = time.monotonic()
@@ -603,6 +663,21 @@ class Engine:
                 self._enforce_seed_policy()
             except Exception:  # noqa: BLE001 — never let the policy thread die
                 pass
+
+    def _adaptive_loop(self) -> None:
+        """Background loop (only started when adaptive_picking is on): for each ACTIVELY-streamed
+        torrent, run one adaptive_tick so a deep buffer relaxes strict-sequential download (throughput)
+        and a shallow one / a seek re-tightens it (continuity)."""
+        while not self._stop.is_set():
+            self._stop.wait(self._adaptive_interval)
+            if self._stop.is_set():
+                break
+            for h in list(self._torrents.values()):
+                if h.is_active():
+                    try:
+                        h.adaptive_tick(self._adaptive_low, self._adaptive_high)
+                    except Exception:  # noqa: BLE001 — never let the adaptive thread die
+                        pass
 
     def _enforce_seed_policy(self) -> None:
         if self._seed_on_complete and self._max_seed_minutes <= 0:

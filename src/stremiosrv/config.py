@@ -38,3 +38,12 @@ class Settings(BaseSettings):
     # empty = disabled (fully static, offline-safe default).
     tracker_list_url: str = ""
     tracker_list_refresh_hours: float = 24.0  # how often the background source re-fetches
+    # Adaptive piece-picking (experimental, OFF by default — needs on-box A/B tuning per the spec).
+    # While a file is playing, relax strict sequential download to parallel/rarest-first once enough
+    # is buffered contiguously ahead of the playhead (harvest swarm throughput), and re-tighten to
+    # in-order when the buffer drains below the low mark or after a seek. The playhead window stays
+    # boosted+deadlined either way, so continuity is protected. 0 lows/highs or the flag off = today.
+    adaptive_picking: bool = False
+    adaptive_low_bytes: int = 67_108_864     # 64 MiB buffered-ahead: below -> strict sequential (safe)
+    adaptive_high_bytes: int = 268_435_456   # 256 MiB buffered-ahead: above -> parallel (throughput)
+    adaptive_interval: float = 2.0           # seconds between adaptive control ticks

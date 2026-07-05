@@ -181,6 +181,7 @@ Everything is a plain `-e NAME=value` environment variable:
 | `STREMIOSRV_EXTRA_TRACKERS` | *(empty)* | Extra trackers appended to **every** torrent (on top of the built-in defaults). Comma/space/newline-separated `udp://`/`http(s)://`/`ws(s)://` URLs. |
 | `STREMIOSRV_TRACKER_LIST_URL` | *(empty)* | Optional URL of a community tracker list (e.g. the raw [ngosang/trackerslist](https://github.com/ngosang/trackerslist) `trackers_best.txt`). Fetched in a **background thread** to keep the list current — best-effort, **never blocks startup or playback**; offline falls back to the last cached list, then the built-in defaults. Empty = fully static. |
 | `STREMIOSRV_TRACKER_LIST_REFRESH_HOURS` | `24` | How often the background tracker-list source re-fetches (only when a URL is set). |
+| `STREMIOSRV_ADAPTIVE_PICKING` | `false` | **Experimental.** While playing, relax strict sequential download to parallel once enough is buffered ahead of the playhead (harvests more swarm throughput), re-tightening to in-order when the buffer drains or on a seek — the playhead window stays deadline-rushed, so continuity is protected. Off by default; needs on-box tuning. |
 | `DOMAIN` | `localhost` | CN for the self-signed cert (when not using `IPADDRESS`). |
 | `CERT_FILE` | `certificates.pem` | Bring-your-own cert (full-chain + key) filename in the data volume. |
 
