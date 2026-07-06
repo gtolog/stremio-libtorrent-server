@@ -234,6 +234,8 @@ class Handle:
         with self._active_lock:
             self._active += 1
             promote = self._active == 1
+        if self.is_seeding():
+            return
         if promote:
             self._set_focused_priority(ACTIVE_FILE_PRIO)
 
