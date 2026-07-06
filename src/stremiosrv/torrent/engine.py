@@ -290,6 +290,10 @@ class Handle:
     def boost_piece(self, piece: int, deadline_ms: int) -> None:
         """Mark a playhead piece as top priority + urgent, and remember it so a later seek can
         drop it (refocus)."""
+        if self.is_seeding():
+            with self._boosted_lock:
+                self._boosted.add(piece)
+            return
         self._h.piece_priority(piece, 7)
         self.set_piece_deadline(piece, deadline_ms)
         with self._boosted_lock:
@@ -346,6 +350,8 @@ class Handle:
     def set_piece_deadline(self, piece: int, ms: int) -> None:
         """Ask libtorrent to fetch this piece within `ms` (urgent, order-independent — enables
         responsive seeking and fetching a trailing moov atom without downloading the whole file)."""
+        if self.is_seeding():
+            return
         try:
             self._h.set_piece_deadline(piece, ms)
         except Exception:  # noqa: BLE001 — deadline is best-effort
